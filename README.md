@@ -1,32 +1,65 @@
-# AWS Serverless Leadership Assessment Platform
+# Leadership360 – Serverless Assessment Platform
 
 ## 🚀 Overview
-A serverless web application to conduct leadership assessments using AWS services.
+
+Leadership360 is a serverless web application designed to conduct 360-degree leadership assessments. It enables organizations to collect feedback from employees and managers, analyze performance gaps, and generate automated reports.
+
+---
 
 ## 🛠️ Tech Stack
-- AWS Lambda
-- API Gateway
-- DynamoDB
-- S3 + CloudFront
-- SES
-- Node.js
+
+* **Frontend:** HTML, JavaScript (Hosted on S3 + CloudFront)
+* **Backend:** AWS Lambda (Node.js)
+* **API:** Amazon API Gateway
+* **Database:** DynamoDB
+* **Email Service:** Amazon SES
+
+---
 
 ## ⚙️ Features
-- Token-based secure assessment links
-- Employee & Manager evaluation
-- Automated report generation
-- Bulk assessment via CSV
-- Export reports as HTML
+
+* 🔐 Secure token-based assessment links
+* 👤 Employee & Manager evaluation system
+* 📊 Automated report generation (Self vs Manager comparison)
+* 📂 Bulk assessment creation via CSV
+* 📥 Export reports as downloadable HTML files
+* ☁️ Fully serverless and scalable architecture
+
+---
 
 ## 🌐 Live Demo
-Frontend: https://d2plkbo2yzut7u.cloudfront.net
+
+👉 https://d2plkbo2yzut7u.cloudfront.net
+
+---
 
 ## 📊 Architecture
-Frontend → S3 + CloudFront  
-Backend → Lambda + API Gateway  
-Database → DynamoDB  
+
+Frontend → S3 + CloudFront
+Backend → Lambda + API Gateway
+Database → DynamoDB
 Email → SES
 
-## 🧪 How to Run
+---
+
+## 🔄 Workflow
+
+1. Admin launches assessment
+2. Emails sent to employee & manager
+3. Users submit ratings
+4. Data stored in DynamoDB
+5. Report generated dynamically
+
+---
+
+## 🧪 Run Locally
+
 ```bash
 node admin-launch.js
+```
+
+---
+
+## 👨‍💻 Author
+
+**Harsh Tiwari**
