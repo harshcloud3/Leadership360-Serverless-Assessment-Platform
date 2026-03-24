@@ -1,0 +1,13 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "ldc-assessment"
+resolve_s3 = true
+s3_prefix = "ldc-assessment"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "TokenSecret=\"change-this-secret-key-in-production\" FromEmail=\"harshcloud3@gmail.com\" AppUrl=\"https://d2plkbo2yzut7u.cloudfront.net\""
+image_repositories = []
+
+[default.global.parameters]
+region = "us-east-1"

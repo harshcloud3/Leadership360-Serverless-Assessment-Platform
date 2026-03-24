@@ -1,0 +1,17 @@
+{
+  "orgId": "bulk-company",
+  "assessments": [
+    {
+      "employeeEmail": "harshcloud3@gmail.com",
+      "employeeName": "Harsh",
+      "managerEmail": "harshcloud3@gmail.com",
+      "managerName": "Manager1"
+    },
+    {
+      "employeeEmail": "jhoanwick101@gmail.com",
+      "employeeName": "Harsh2",
+      "managerEmail": "harshcloud3@gmail.com",
+      "managerName": "Manager2"
+    }
+  ]
+}

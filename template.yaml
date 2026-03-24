@@ -1,0 +1,213 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: LDC 180 Degree Leadership Assessment Platform
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs20.x
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref AssessmentsTable
+        TOKEN_SECRET: !Ref TokenSecret
+        FROM_EMAIL: !Ref FromEmail
+        APP_URL: !Ref AppUrl
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+
+Parameters:
+  TokenSecret:
+    Type: String
+    Description: Secret key for token generation
+    Default: "change-this-secret-key-in-production"
+  FromEmail:
+    Type: String
+    Description: Email address to send from (must be verified in SES)
+    Default: "noreply@yourdomain.com"
+  AppUrl:
+    Type: String
+    Description: URL of the frontend application
+    Default: "https://your-app-url.com"
+
+Resources:
+  # DynamoDB Table
+  AssessmentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ldc-assessments
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # API Gateway
+  AssessmentApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ldc-assessment-api
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'content-type'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: NONE
+
+  # Lambda Functions
+  LaunchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ldc-launch-assessment
+      CodeUri: backend/lambda/
+      Handler: launch.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AssessmentsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AssessmentApi
+            Path: /admin/launch
+            Method: POST
+
+  GetAssessmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ldc-get-assessment
+      CodeUri: backend/lambda/
+      Handler: get-assessment.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AssessmentsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AssessmentApi
+            Path: /assessment/{token}
+            Method: GET
+
+  SubmitAssessmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ldc-submit-assessment
+      CodeUri: backend/lambda/
+      Handler: submit-assessment.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AssessmentsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AssessmentApi
+            Path: /assessment/{token}
+            Method: POST
+
+  GenerateReportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ldc-generate-report
+      CodeUri: backend/lambda/
+      Handler: generate-report.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AssessmentsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AssessmentApi
+            Path: /report/{assessmentId}
+            Method: GET
+
+  # S3 Bucket for frontend hosting
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ldc-assessment-frontend-${AWS::AccountId}
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub ${FrontendBucket.Arn}/*
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          DefaultTTL: 3600
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: none
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${AssessmentApi}.execute-api.${AWS::Region}.amazonaws.com/prod
+  FrontendURL:
+    Description: Frontend application URL
+    Value: !Sub https://${CloudFrontDistribution}.cloudfront.net
+  S3BucketName:
+    Description: S3 bucket name for frontend files
+    Value: !Ref FrontendBucket
